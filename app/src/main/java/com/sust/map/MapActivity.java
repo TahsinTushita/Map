@@ -2,15 +2,22 @@ package com.sust.map;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -30,6 +37,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -50,20 +58,23 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private FusedLocationProviderClient mfusedLocationProviderClient;
     private static final float DEFAULT_ZOOM = 1f;
 
-
     private EditText mSearchText;
     private ImageView mGps;
+    private LocationManager locationManager;
+    private LocationListener locationListener;
+    GPSTracker tracker = new GPSTracker(this);
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         if (mLocationPermissionGranted) {
-            getDeviceLocation();
+            //getDeviceLocation();
+            getCurrentLocation();
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
             mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(false);
+            //mMap.getUiSettings().setMyLocationButtonEnabled(false);
             init();
         }
 
@@ -77,6 +88,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         mGps = (ImageView) findViewById(R.id.gpsid);
 
         getLocationPermission();
+
 
     }
 
@@ -100,7 +112,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         mGps.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getDeviceLocation();
+                   //getDeviceLocation();
+                getCurrentLocation();
             }
         });
 
@@ -122,7 +135,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         if (list.size() > 0) {
             Address address = list.get(0);
             //Toast.makeText(MapActivity.this, address.toString(), Toast.LENGTH_SHORT).show();
-            moveCamera(new LatLng(address.getLatitude(),address.getLongitude()),DEFAULT_ZOOM,address.getAddressLine(0));
+            moveCamera(new LatLng(address.getLatitude(), address.getLongitude()), DEFAULT_ZOOM, address.getAddressLine(0));
         }
     }
 
@@ -138,8 +151,8 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
                         if (task.isSuccessful()) {
                             Log.d(TAG, "onComplete: location found");
                             Location currentLocation = (Location) task.getResult();
-                            moveCamera(new LatLng(currentLocation.getAltitude(), currentLocation.getLongitude()),
-                                    DEFAULT_ZOOM,"my location");
+                            moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()),
+                                    DEFAULT_ZOOM, "my location");
                         } else {
                             Log.d(TAG, "onComplete: current location is null");
                         }
@@ -151,16 +164,16 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
     }
 
-    private void moveCamera(LatLng latLng, float zoom,String title) {
+    private void moveCamera(LatLng latLng, float zoom, String title) {
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom));
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
-        mMap.setMyLocationEnabled(true);
-        mMap.getUiSettings().setMyLocationButtonEnabled(false);
+        //mMap.setMyLocationEnabled(true);
+        //mMap.getUiSettings().setMyLocationButtonEnabled(false);
 
-        if(!title.equals("my location")){
+        if (!title.equals("my location")) {
             MarkerOptions options = new MarkerOptions()
                     .position(latLng)
                     .title(title);
@@ -215,7 +228,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     }
 
 
-    private static void hideSoftKeyboard(Activity activity){
+    private static void hideSoftKeyboard(Activity activity) {
         InputMethodManager imm = (InputMethodManager) activity.getSystemService(Activity.INPUT_METHOD_SERVICE);
         //Find the currently focused view, so we can grab the correct window token from it.
         View view = activity.getCurrentFocus();
@@ -225,4 +238,87 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
         }
         imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
     }
-}
+
+
+    double latitude;
+    double longitude;
+
+    private void getCurrentLocation(){
+
+
+        if (ActivityCompat.checkSelfPermission
+                (this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                &&
+                ActivityCompat.checkSelfPermission
+                        (this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+
+
+        }
+        else {
+
+            // enable location buttons
+            mMap.setMyLocationEnabled(true);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+            // fetch last location if any from provider - GPS.
+            final LocationManager locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+            final Location loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            //if last known location is not available
+            if (loc == null) {
+
+                final LocationListener locationListener = new LocationListener() {
+                    @Override
+                    public void onLocationChanged(final Location location) {
+
+                        // getting location of user
+                        latitude = location.getLatitude();
+                        longitude = location.getLongitude();
+                        //do something with Lat and Lng
+                    }
+
+                    @Override
+                    public void onStatusChanged(String provider, int status, Bundle extras) {
+                    }
+
+                    @Override
+                    public void onProviderEnabled(String provider) {
+                        //when user enables the GPS setting, this method is triggered.
+                    }
+
+                    @Override
+                    public void onProviderDisabled(String provider) {
+                        //when no provider is available in this case GPS provider, trigger your gpsDialog here.
+                    }
+                };
+
+                //update location every 10sec in 500m radius with both provider GPS and Network.
+
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 10*1000, 500, locationListener);
+                locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000, 500, locationListener);
+            }
+            else {
+                //do something with last known location.
+                // getting location of user
+                latitude = loc.getLatitude();
+                longitude = loc.getLongitude();
+            }
+        }
+
+
+
+
+//        if (!tracker.canGetLocation()) {
+//            tracker.showSettingsAlert();
+//        } else {
+//            latitude = tracker.getLatitude();
+//            longitude = tracker.getLongitude();
+            MarkerOptions userMarker = new MarkerOptions().position(new LatLng(latitude,longitude)).title("Current Location");
+
+            Marker myMarker = mMap.addMarker(userMarker);
+            Toast.makeText(this,"lat:"+latitude+" long:"+longitude,Toast.LENGTH_SHORT).show();
+        moveCamera(new LatLng(latitude, longitude),15f
+                , "my location");
+        }
+    }
+
