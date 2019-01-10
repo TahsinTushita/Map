@@ -62,14 +62,13 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private ImageView mGps;
     private LocationManager locationManager;
     private LocationListener locationListener;
-    GPSTracker tracker = new GPSTracker(this);
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         if (mLocationPermissionGranted) {
             //getDeviceLocation();
-            getCurrentLocation();
+            //getCurrentLocation();
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return;
             }
@@ -305,18 +304,10 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         }
 
-
-
-
-//        if (!tracker.canGetLocation()) {
-//            tracker.showSettingsAlert();
-//        } else {
-//            latitude = tracker.getLatitude();
-//            longitude = tracker.getLongitude();
             MarkerOptions userMarker = new MarkerOptions().position(new LatLng(latitude,longitude)).title("Current Location");
 
             Marker myMarker = mMap.addMarker(userMarker);
-            Toast.makeText(this,"lat:"+latitude+" long:"+longitude,Toast.LENGTH_SHORT).show();
+            //Toast.makeText(this,"lat:"+latitude+" long:"+longitude,Toast.LENGTH_SHORT).show();
         moveCamera(new LatLng(latitude, longitude),15f
                 , "my location");
         }
