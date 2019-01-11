@@ -64,8 +64,7 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     private LocationManager locationManager;
     private LocationListener locationListener;
     Marker marker;
-    private Map<Marker, Map<String, Object>> markers = new HashMap<>();
-    private Map<String, Object> dataModel = new HashMap<>();
+    ArrayList<Address> addresses = new ArrayList<Address>();
 
 
 
@@ -81,25 +80,27 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             mMap.setMyLocationEnabled(true);
             //mMap.getUiSettings().setMyLocationButtonEnabled(false);
 
-            dataModel.put("snipet", "This is my spot!");
-            dataModel.put("latitude", 20.0f);
-            dataModel.put("longitude", 100.0f);
+            Geocoder coder = new Geocoder(this);
+            try {
+                String address = "Mirpur-2,Dhaka,Bangladesh";
+                ArrayList<Address> adresses = (ArrayList<Address>) coder.getFromLocationName(address, 2);
 
-            LatLng latLng = new LatLng((float)dataModel.get("latitude"),(float)dataModel.get("longitude"));
-            String title = dataModel.get("snipet").toString();
+                for(Address add : adresses){
 
-            MarkerOptions markerOptions = new MarkerOptions()
-                    .position(latLng)
-                    .title(title);
+                        double longitude = add.getLongitude();
+                        double latitude = add.getLatitude();
+                        MarkerOptions options = new MarkerOptions().position(new LatLng(latitude,longitude)).title(address);
+                        mMap.addMarker(options);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
-            Marker marker = googleMap.addMarker(markerOptions);
-            markers.put(marker, dataModel);
 
             googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+
                 @Override
                 public boolean onMarkerClick(Marker marker) {
-                    Map dataModel = (Map)markers.get(marker);
-                    String title = (String)dataModel.get("title");
                     Intent intent = new Intent(MapActivity.this,profile.class);
                     startActivity(intent);
 
@@ -257,6 +258,9 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
     double latitude;
     double longitude;
 
+    private MarkerOptions userMarker;
+    private Marker myMarker;
+
     private void getCurrentLocation(){
 
 
@@ -319,9 +323,19 @@ public class MapActivity extends AppCompatActivity implements OnMapReadyCallback
             }
         }
 
-            MarkerOptions userMarker = new MarkerOptions().position(new LatLng(latitude,longitude)).title("Current Location");
+            if(userMarker == null) {
+                userMarker = new MarkerOptions().position(new LatLng(latitude, longitude)).title("Current Location");
 
-            Marker myMarker = mMap.addMarker(userMarker);
+                myMarker = mMap.addMarker(userMarker);
+            }
+            else {
+                myMarker.remove();
+
+                userMarker = new MarkerOptions().position(new LatLng(latitude, longitude)).title("Current Location");
+
+                myMarker = mMap.addMarker(userMarker);
+
+            }
             //Toast.makeText(this,"lat:"+latitude+" long:"+longitude,Toast.LENGTH_SHORT).show();
         moveCamera(new LatLng(latitude, longitude),15f
                 , "my location");
